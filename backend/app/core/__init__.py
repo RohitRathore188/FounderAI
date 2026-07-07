@@ -1,0 +1,1 @@
+# FounderAI core utilities package

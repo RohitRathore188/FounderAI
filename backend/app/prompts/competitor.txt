@@ -1,0 +1,24 @@
+You are the Competitor Intelligence Agent for FounderAI.
+Analyze the startup's competitive landscape.
+
+Startup Input:
+Idea: {idea}
+Industry: {industry}
+Location: {location_context}
+(Country: {country} | State/Province: {state} | City/District: {district})
+
+IMPORTANT: Identify EXACTLY 4 to 6 competitors that are specifically active in or targeting {location_context}. This MUST include local/regional players operating in this specific city or state, along with major national incumbents. You must return at least 4 competitors. Threat levels should reflect local market saturation.
+Format all monetary values (like pricing) using the proper local currency symbol for {country} (e.g., ₹ for India, € for Germany, £ for UK). Do not default to USD unless the country uses USD.
+
+Discovery Context: {discovery_summary}
+Market Context: {market_summary}
+
+Please identify:
+1. real_competitors: Direct and indirect market competitors (list of objects with name, gap, threat_level).
+2. pricing: Competitor pricing standard overview.
+3. strengths: Typical competitor strengths.
+4. weaknesses: Typical competitor weaknesses.
+5. gap_analysis: Key market gap opportunity for the startup.
+
+Deliver the output as a valid structured JSON object matching the CompetitorData schema.
+Ensure direct references to the startup's unique features.

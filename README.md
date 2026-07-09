@@ -39,10 +39,13 @@ Founder AI/
    # Windows PowerShell
    .venv/Scripts/activate
    ```
-3. (Optional) Set your Gemini API key in `.env`:
+3. Set your API keys in `.env`:
    ```env
-   GEMINI_API_KEY="your_api_key_here"
+   GEMINI_API_KEY="your_gemini_api_key_here"
+   TAVILY_API_KEY="your_tavily_api_key_here"
    ```
+   - **Gemini API Key**: Powers the multi-agent LLM pipeline.
+   - **Tavily API Key**: Enables real-time local competitor search ([get a free key](https://tavily.com)).
 4. Start the server using Uvicorn:
    ```bash
    py -m uvicorn main:app --reload --port 8000
@@ -55,7 +58,11 @@ Founder AI/
    ```bash
    cd ../frontend
    ```
-2. Launch the Vite development server:
+2. Install dependencies (includes `country-state-city` for cascading location dropdowns):
+   ```bash
+   npm install
+   ```
+3. Launch the Vite development server:
    ```bash
    npm run dev
    ```
@@ -73,7 +80,7 @@ FastAPI Endpoint (/api/startup/analyze)
 LangGraph Orchestrator 
   ├── Discovery Agent (USP, problem, solution, risks, opportunities)
   ├── Market Agent (TAM/SAM/SOM sizing, CAGR, buyer personas)
-  ├── Competitor Agent (SWOT analysis, direct/indirect scans)
+  ├── Competitor Agent (Local SWOT analysis via Tavily web search, direct/indirect scans)
   ├── Business Model Agent (9-box Canvas, cost structures, revenue streams)
   ├── Registration Agent (Entity recommendations, regional portals, licenses)
   ├── Funding Agent (Bootstrapping, VC stages, grant matches, readiness score)

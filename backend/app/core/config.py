@@ -16,6 +16,7 @@ class Settings(BaseSettings):
 
     # Gemini API Key
     GEMINI_API_KEY: str = Field(default="", env="GEMINI_API_KEY")
+    TAVILY_API_KEY: str = Field(default="", env="TAVILY_API_KEY")
 
     # Allowed Frontend Origins
     CORS_ORIGINS: List[str] = [

@@ -1,6 +1,11 @@
 from app.agents.base import BaseAgent
 from app.schemas.responses import CompetitorData
+from app.services.tavily_service import TavilySearchService
 from typing import Dict, Any
+from app.core.logging import logger
+
+# Initialize Tavily service once
+tavily_service = TavilySearchService()
 
 class CompetitorAgent(BaseAgent):
     def __init__(self):
@@ -12,6 +17,20 @@ class CompetitorAgent(BaseAgent):
 
     def run(self, startup_info: Dict[str, Any], discovery_summary: str, market_summary: str) -> Dict[str, Any]:
         print(f"\n[COMPETITOR AGENT] startup_info received: {startup_info}")
+
+        # Search for real local competitors via Tavily
+        tavily_results = tavily_service.search_local_competitors(
+            industry=startup_info.get("industry", ""),
+            country=startup_info.get("country", ""),
+            state=startup_info.get("state", ""),
+            district=startup_info.get("district", ""),
+            idea=startup_info.get("idea", "")
+        )
+        if tavily_results:
+            logger.info(f"[COMPETITOR AGENT] Tavily returned local competitor data.")
+        else:
+            logger.warning(f"[COMPETITOR AGENT] No Tavily results. LLM will rely on its own knowledge.")
+
         variables = {
             "idea": startup_info.get("idea", ""),
             "industry": startup_info.get("industry", ""),
@@ -26,11 +45,12 @@ class CompetitorAgent(BaseAgent):
             "team_size": startup_info.get("team_size", "1"),
             "customer_segment": startup_info.get("customer_segment", startup_info.get("target_market", "")),
             "discovery_summary": discovery_summary,
-            "market_summary": market_summary
+            "market_summary": market_summary,
+            "tavily_results": tavily_results
         }
-        
+
         data = self.invoke_llm(variables)
-        
+
         comp_names = [c.name for c in data.real_competitors]
         summary = f"Competitors: {', '.join(comp_names[:2])}. Gap: {data.gap_analysis[:60]}."
         return self.create_response_payload(summary, data)

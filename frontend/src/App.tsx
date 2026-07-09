@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Country, State, City } from 'country-state-city';
+import type { ICountry, IState, ICity } from 'country-state-city';
+import { motion, AnimatePresence } from 'framer-motion';
 import './App.css';
 import {
   Sparkles,
@@ -162,18 +165,19 @@ export default function App() {
 
   // Startup inputs state
   const [form, setForm] = useState({
-    idea: 'A SaaS platform automating medical billing compliance for small clinics.',
-    industry: 'Healthcare Tech / SaaS',
-    country: 'United States',
-    state: 'California',
-    district: 'San Francisco',
-    budget: '$15,000',
+    idea: '',
+    industry: '',
+    country: '',
+    state: '',
+    district: '',
+    budget: '',
     stage: 'Idea',
-    founder_name: 'Dr. Jane Smith',
-    target_market: 'Private Medical Clinics and Billing Agents',
-    team_size: '2',
-    customer_segment: 'Independent clinic owners and billing managers'
+    founder_name: '',
+    target_market: '',
+    team_size: '',
+    customer_segment: ''
   });
+  const [industryOther, setIndustryOther] = useState(false);
 
   // Current analysis state. Uses mock data by default for premium viewing.
   const [result, setResult] = useState<FounderState>(INITIAL_MOCK_STATE);
@@ -234,6 +238,44 @@ export default function App() {
   };
 
   const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
+
+  // Helper: Resolve ISO codes to readable location names
+  const getCountryName = (isoCode: string): string => {
+    if (!isoCode) return '';
+    const country = Country.getCountryByCode(isoCode);
+    return country ? country.name : isoCode;
+  };
+  const getStateName = (countryCode: string, stateCode: string): string => {
+    if (!countryCode || !stateCode) return '';
+    const state = State.getStateByCodeAndCountry(stateCode, countryCode);
+    return state ? state.name : stateCode;
+  };
+
+  // Currency mapping by country ISO code
+  const getCurrencySymbol = (countryCode: string): string => {
+    const currencyMap: Record<string, string> = {
+      'US': '$', 'IN': '₹', 'GB': '£', 'DE': '€', 'FR': '€', 'JP': '¥',
+      'CN': '¥', 'KR': '₩', 'BR': 'R$', 'RU': '₽', 'ZA': 'R',
+      'AU': 'A$', 'CA': 'C$', 'MX': 'MX$', 'SG': 'S$', 'AE': 'AED ',
+      'SA': 'SAR ', 'NG': '₦', 'EG': 'E£', 'KE': 'KSh ', 'PK': '₨',
+      'BD': '৳', 'LK': 'Rs ', 'NP': 'Rs ', 'MY': 'RM ', 'TH': '฿',
+      'VN': '₫', 'PH': '₱', 'ID': 'Rp ', 'TR': '₺', 'PL': 'zł',
+      'SE': 'kr ', 'NO': 'kr ', 'DK': 'kr ', 'CH': 'CHF ',
+      'NZ': 'NZ$', 'IL': '₪', 'CL': 'CLP ', 'CO': 'COP ', 'AR': 'ARS ',
+      'PE': 'S/', 'TW': 'NT$', 'HK': 'HK$',
+    };
+    return currencyMap[countryCode] || '$';
+  };
+
+  const formatBudget = (value: string, countryCode: string): string => {
+    // Strip everything except digits
+    const digits = value.replace(/[^0-9]/g, '');
+    if (!digits) return '';
+    // Format with commas
+    const formatted = Number(digits).toLocaleString('en');
+    const symbol = getCurrencySymbol(countryCode);
+    return `${symbol}${formatted}`;
+  };
 
   // Run Onboarding analysis flow
   const handleLaunchAnalysis = async (e: React.FormEvent) => {
@@ -333,7 +375,7 @@ export default function App() {
       addLog('Report Generator triggered.');
       addLog('Report Agent: Assembling core modules, rendering layout flows, and drafting PDF...');
       
-      const payload = { ...form };
+      const payload = { ...form, country: getCountryName(form.country), state: getStateName(form.country, form.state) };
       
       // Call endpoint
       const response = await fetch(`${API_BASE_URL}/api/startup/analyze`, {
@@ -381,7 +423,7 @@ export default function App() {
       const response = await fetch(`${API_BASE_URL}/api/startup/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form)
+        body: JSON.stringify({ ...form, country: getCountryName(form.country), state: getStateName(form.country, form.state) })
       });
 
       if (!response.ok) {
@@ -667,7 +709,7 @@ export default function App() {
                       id="startup-idea"
                       value={form.idea}
                       onChange={(e) => setForm({ ...form, idea: e.target.value })}
-                      placeholder="Explain your venture in a few sentences..."
+                      placeholder="Describe your startup idea here — what problem are you solving and for whom?"
                       className="glass-input p-4 w-full h-36 resize-none leading-relaxed text-sm"
                     />
                     <span className="text-[10px] text-[var(--text-secondary)]">Provide the core problem, your proposed solution, and your target audience.</span>
@@ -677,49 +719,97 @@ export default function App() {
                 {/* STEP 2: DETAILS */}
                 {wizardStep === 2 && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Industry Dropdown */}
                     <div className="flex flex-col gap-2">
                       <label htmlFor="industry-segment" className="text-xs font-bold text-white">Niche / Industry Segment</label>
-                      <input
+                      <select
                         id="industry-segment"
-                        type="text"
-                        value={form.industry}
-                        onChange={(e) => setForm({ ...form, industry: e.target.value })}
+                        value={industryOther ? '__other__' : form.industry}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === '__other__') {
+                            setIndustryOther(true);
+                            setForm({ ...form, industry: '' });
+                          } else {
+                            setIndustryOther(false);
+                            setForm({ ...form, industry: val });
+                          }
+                        }}
                         className="glass-input px-4 py-3 w-full"
-                        placeholder="e.g. Fintech / SaaS"
-                      />
+                      >
+                        <option value="" disabled>Select your industry...</option>
+                        <option value="SaaS / Software">SaaS / Software</option>
+                        <option value="Fintech">Fintech</option>
+                        <option value="Healthcare / MedTech">Healthcare / MedTech</option>
+                        <option value="EdTech">EdTech</option>
+                        <option value="E-commerce / D2C">E-commerce / D2C</option>
+                        <option value="Food & Beverage">Food & Beverage</option>
+                        <option value="Real Estate / PropTech">Real Estate / PropTech</option>
+                        <option value="AgriTech">AgriTech</option>
+                        <option value="CleanTech / Energy">CleanTech / Energy</option>
+                        <option value="Logistics / Supply Chain">Logistics / Supply Chain</option>
+                        <option value="Media & Entertainment">Media & Entertainment</option>
+                        <option value="__other__">Others (Custom)</option>
+                      </select>
+                      {industryOther && (
+                        <input
+                          type="text"
+                          value={form.industry}
+                          onChange={(e) => setForm({ ...form, industry: e.target.value })}
+                          className="glass-input px-4 py-3 w-full mt-2"
+                          placeholder="Type your custom industry..."
+                        />
+                      )}
                     </div>
+
+                    {/* Country Dropdown */}
                     <div className="flex flex-col gap-2">
                       <label htmlFor="registration-country" className="text-xs font-bold text-white">Primary Country of Registration</label>
-                      <input
+                      <select
                         id="registration-country"
-                        type="text"
                         value={form.country}
-                        onChange={(e) => setForm({ ...form, country: e.target.value })}
+                        onChange={(e) => setForm({ ...form, country: e.target.value, state: '', district: '' })}
                         className="glass-input px-4 py-3 w-full"
-                        placeholder="e.g. India, United States"
-                      />
+                      >
+                        <option value="" disabled>Select country...</option>
+                        {Country.getAllCountries().map((c: ICountry) => (
+                          <option key={c.isoCode} value={c.isoCode}>{c.name}</option>
+                        ))}
+                      </select>
                     </div>
+
+                    {/* State Dropdown */}
                     <div className="flex flex-col gap-2">
                       <label htmlFor="registration-state" className="text-xs font-bold text-white">State / Province</label>
-                      <input
+                      <select
                         id="registration-state"
-                        type="text"
                         value={form.state}
-                        onChange={(e) => setForm({ ...form, state: e.target.value })}
+                        onChange={(e) => setForm({ ...form, state: e.target.value, district: '' })}
                         className="glass-input px-4 py-3 w-full"
-                        placeholder="e.g. California"
-                      />
+                        disabled={!form.country}
+                      >
+                        <option value="" disabled>{form.country ? 'Select state...' : 'Select country first'}</option>
+                        {form.country && State.getStatesOfCountry(form.country).map((s: IState) => (
+                          <option key={s.isoCode} value={s.isoCode}>{s.name}</option>
+                        ))}
+                      </select>
                     </div>
+
+                    {/* City/District Dropdown */}
                     <div className="flex flex-col gap-2">
                       <label htmlFor="registration-district" className="text-xs font-bold text-white">City / District</label>
-                      <input
+                      <select
                         id="registration-district"
-                        type="text"
                         value={form.district}
                         onChange={(e) => setForm({ ...form, district: e.target.value })}
                         className="glass-input px-4 py-3 w-full"
-                        placeholder="e.g. San Francisco"
-                      />
+                        disabled={!form.state}
+                      >
+                        <option value="" disabled>{form.state ? 'Select city...' : 'Select state first'}</option>
+                        {form.state && form.country && City.getCitiesOfState(form.country, form.state).map((c: ICity) => (
+                          <option key={c.name} value={c.name}>{c.name}</option>
+                        ))}
+                      </select>
                     </div>
                   </div>
                 )}
@@ -744,9 +834,9 @@ export default function App() {
                         id="startup-budget"
                         type="text"
                         value={form.budget}
-                        onChange={(e) => setForm({ ...form, budget: e.target.value })}
+                        onChange={(e) => setForm({ ...form, budget: formatBudget(e.target.value, form.country) })}
                         className="glass-input px-4 py-3 w-full"
-                        placeholder="e.g. $10,000"
+                        placeholder={`e.g. ${getCurrencySymbol(form.country)}10,000`}
                       />
                     </div>
                     <div className="flex flex-col gap-2">
@@ -1175,24 +1265,26 @@ export default function App() {
                 <p className="page-copy">Toggle sub-modules generated by specialized agents</p>
               </div>
               <div className="flex items-center gap-2">
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                   onClick={handleDownloadPDF}
                   disabled={pdfGenerating}
-                  className={`btn-glass px-4 py-2 text-xs font-bold flex items-center gap-1.5 transition-all ${
-                    pdfGenerating ? 'opacity-65 cursor-not-allowed' : ''
+                  className={`btn-glass-primary px-5 py-2.5 text-xs font-bold flex items-center gap-2 transition-all ${
+                    pdfGenerating ? 'opacity-70 cursor-not-allowed' : ''
                   }`}
                 >
                   {pdfGenerating ? (
                     <>
-                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin mr-1" />
-                      Generating...
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Compiling...</span>
                     </>
                   ) : (
                     <>
-                      <Download className="w-3.5 h-3.5" /> Export PDF
+                      <Download className="w-4 h-4" /> <span>Export PDF</span>
                     </>
                   )}
-                </button>
+                </motion.button>
                 {pdfError && (
                   <span className="text-[10px] text-rose-400 font-medium">
                     Fail <button onClick={handleDownloadPDF} className="underline hover:text-white font-bold">Retry</button>
@@ -1202,7 +1294,7 @@ export default function App() {
             </div>
 
             {/* Sub-navigation Tabs */}
-            <div className="responsive-tabs border-b border-white/5 pb-2">
+            <div className="responsive-tabs flex flex-wrap gap-2 mb-8 bg-slate-900/40 p-1.5 rounded-2xl border border-white/5 w-fit">
               {[
                 { id: 'overview', label: 'Summary & Core' },
                 { id: 'market', label: 'TAM/SAM/SOM' },
@@ -1211,19 +1303,27 @@ export default function App() {
                 { id: 'registration', label: 'Entity Registry' },
                 { id: 'funding', label: 'Grants & VCs' },
                 { id: 'legal', label: 'Contracts Legal' }
-              ].map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveReportTab(tab.id as any)}
-                  className={`px-4 py-2.5 text-xs font-bold transition-all border-b-2 ${
-                    activeReportTab === tab.id
-                      ? 'border-indigo-500 text-white bg-indigo-500/5'
-                      : 'border-transparent text-[var(--text-secondary)] hover:text-white'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
+              ].map(tab => {
+                const isActive = activeReportTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveReportTab(tab.id as any)}
+                    className={`relative px-4 py-2 text-xs font-bold rounded-xl transition-colors z-10 ${
+                      isActive ? 'text-white' : 'text-slate-400 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    {isActive && (
+                      <motion.div
+                        layoutId="activeTabIndicator"
+                        className="absolute inset-0 bg-indigo-500/20 border border-indigo-500/30 rounded-xl -z-10"
+                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                      />
+                    )}
+                    {tab.label}
+                  </button>
+                );
+              })}
             </div>
 
             {/* TAB CONTENTS */}
@@ -1549,29 +1649,53 @@ export default function App() {
               </div>
 
               {/* Right Column: Execution Timeline (Vertical List) */}
-              <div className="md:col-span-8 page-section p-4 sm:p-6 bg-slate-950/20">
-                <h3 className="text-base font-bold font-display text-white mb-6">Milestone Tracker</h3>
-                <div className="milestone-track">
-                  {result.roadmap?.roadmap_phases?.map((phase, idx) => (
-                    <div key={idx} className="relative">
-                      {/* Orb link */}
-                      <div className="milestone-marker" />
-                      <div className="relative">
-                        <span className="text-[8px] text-white font-bold font-mono">{idx + 1}</span>
-                      </div>
-                      <div>
-                        <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">{phase.duration}</span>
-                        <h4 className="text-base font-bold text-white mt-1">{phase.phase}</h4>
-                        <ul className="mt-4 space-y-3">
-                          {phase.milestones?.map((ms, i) => (
-                            <li key={i} className="text-xs text-[var(--text-secondary)] flex items-start gap-2.5">
-                              <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" /> {ms}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-                  ))}
+              <div className="md:col-span-8 page-section p-4 sm:p-8 bg-slate-950/40 border border-white/5 rounded-3xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 blur-[100px] rounded-full pointer-events-none" />
+                <h3 className="text-xl font-bold font-display text-white mb-8">Milestone Tracker</h3>
+                <div className="relative pl-6 sm:pl-8 border-l border-slate-800/60 space-y-12">
+                  {result.roadmap?.roadmap_phases?.map((phase, idx) => {
+                    // Color mapping based on phase index
+                    const colors = [
+                      { text: 'text-amber-400', border: 'border-amber-400/50', bg: 'bg-amber-400/10', glow: 'shadow-[0_0_15px_rgba(251,191,36,0.3)]' },
+                      { text: 'text-emerald-400', border: 'border-emerald-400/50', bg: 'bg-emerald-400/10', glow: 'shadow-[0_0_15px_rgba(52,211,153,0.3)]' },
+                      { text: 'text-indigo-400', border: 'border-indigo-400/50', bg: 'bg-indigo-400/10', glow: 'shadow-[0_0_15px_rgba(99,102,241,0.3)]' },
+                      { text: 'text-cyan-400', border: 'border-cyan-400/50', bg: 'bg-cyan-400/10', glow: 'shadow-[0_0_15px_rgba(34,211,238,0.3)]' },
+                    ];
+                    const theme = colors[idx % colors.length];
+
+                    return (
+                      <motion.div 
+                        key={idx} 
+                        initial={{ opacity: 0, x: 20 }}
+                        whileInView={{ opacity: 1, x: 0 }}
+                        viewport={{ once: true, margin: "-50px" }}
+                        transition={{ duration: 0.5, delay: idx * 0.15 }}
+                        className="relative"
+                      >
+                        {/* Timeline Node Marker */}
+                        <div className={`absolute -left-[31px] sm:-left-[39px] top-1 w-4 h-4 rounded-full border-2 ${theme.border} ${theme.bg} ${theme.glow} flex items-center justify-center`}>
+                          <div className={`w-1.5 h-1.5 rounded-full bg-current ${theme.text}`} />
+                        </div>
+                        
+                        <div className="glass-panel p-5 sm:p-6 border border-white/5 hover:border-white/10 transition-colors bg-slate-900/40">
+                          <span className={`text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-md bg-white/5 border border-white/10 ${theme.text}`}>
+                            {phase.duration}
+                          </span>
+                          <h4 className="text-lg font-bold text-white mt-3">{phase.phase}</h4>
+                          <ul className="mt-5 space-y-3">
+                            {phase.milestones?.map((ms, i) => (
+                              <li key={i} className="text-sm text-slate-300 flex items-start gap-3 bg-white/[0.02] p-3 rounded-lg border border-white/[0.03]">
+                                <div className={`w-5 h-5 rounded-full ${theme.bg} ${theme.border} flex items-center justify-center flex-shrink-0 mt-0.5`}>
+                                  <CheckCircle2 className={`w-3 h-3 ${theme.text}`} />
+                                </div>
+                                <span className="leading-relaxed">{ms}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
                 </div>
               </div>
 
